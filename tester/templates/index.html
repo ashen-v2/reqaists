@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CRUD API Tester</title>
+  <style>
+    :root {
+      --ink: #1c1915;
+      --muted: #5e584f;
+      --line: #d9d2c5;
+      --paper: #f6f3ec;
+      --card: #fffdf8;
+      --accent: #0f6e56;
+      --accent-ink: #08382c;
+      --fail: #9f2d2d;
+      --warn: #8a5a12;
+      --method: #243044;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "Helvetica Neue", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at top left, #efe6d4 0, transparent 28rem),
+        var(--paper);
+    }
+    main {
+      max-width: 980px;
+      margin: 0 auto;
+      padding: 2.5rem 1.25rem 4rem;
+    }
+    header { margin-bottom: 1.5rem; }
+    h1 {
+      margin: 0;
+      font-size: 2rem;
+      letter-spacing: -0.03em;
+    }
+    .lede { margin: 0.4rem 0 0; color: var(--muted); max-width: 40rem; }
+    form, .panel {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 1.1rem 1.15rem 1.2rem;
+    }
+    fieldset {
+      border: 0;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 0.55rem;
+    }
+    legend, label, .label {
+      font-size: 0.82rem;
+      font-weight: 650;
+      letter-spacing: 0.02em;
+    }
+    .choice {
+      display: flex;
+      gap: 0.6rem;
+      align-items: flex-start;
+      padding: 0.7rem 0.75rem;
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      background: #fbfaf6;
+    }
+    .choice strong { display: block; color: var(--ink); }
+    .choice span span { color: var(--muted); font-size: 0.92rem; }
+    .grid {
+      display: grid;
+      gap: 0.9rem;
+      margin-top: 0.95rem;
+    }
+    input[type="text"], input[type="number"], textarea, input[type="file"] {
+      width: 100%;
+      margin-top: 0.3rem;
+      padding: 0.65rem 0.7rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font: inherit;
+      color: inherit;
+      background: white;
+    }
+    textarea { min-height: 5.5rem; resize: vertical; }
+    .row { display: flex; gap: 0.6rem; align-items: end; }
+    .row > * { flex: 1; }
+    button {
+      font: inherit;
+      font-weight: 650;
+      border: 0;
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      cursor: pointer;
+      background: var(--accent);
+      color: white;
+    }
+    button.secondary { background: var(--method); }
+    button:disabled { opacity: 0.55; cursor: wait; }
+    .endpoints { display: grid; gap: 0.45rem; margin-top: 0.35rem; }
+    .endpoint {
+      display: flex;
+      gap: 0.7rem;
+      align-items: center;
+      padding: 0.55rem 0.65rem;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+    }
+    .method {
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: white;
+      background: var(--method);
+      border-radius: 999px;
+      padding: 0.15rem 0.45rem;
+      min-width: 4.2rem;
+      text-align: center;
+    }
+    .path { font-family: "Cascadia Code", "Consolas", monospace; }
+    .summary { color: var(--muted); }
+    .status { min-height: 1.2rem; margin: 0.8rem 0 0; color: var(--muted); }
+    .status.error { color: var(--fail); }
+    .panel { margin-top: 1rem; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+    th, td { text-align: left; padding: 0.55rem 0.4rem; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { font-size: 0.78rem; letter-spacing: 0.04em; color: var(--muted); }
+    .pass { color: var(--accent-ink); font-weight: 700; }
+    .fail { color: var(--fail); font-weight: 700; }
+    .kind { text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.04em; }
+    .kind.happy { color: var(--accent-ink); }
+    .kind.edge { color: var(--warn); }
+    .kind.invalid { color: var(--fail); }
+    pre {
+      margin: 0.35rem 0 0;
+      white-space: pre-wrap;
+      font-family: "Cascadia Code", "Consolas", monospace;
+      font-size: 0.78rem;
+      background: #f3efe6;
+      padding: 0.45rem 0.55rem;
+      border-radius: 6px;
+    }
+    a.download { color: var(--accent-ink); font-weight: 650; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body data-model="{{ model_name }}">
+  <main>
+    <header>
+      <h1>CRUD API Tester</h1>
+      <p class="lede">Load an OpenAPI document, pick one endpoint, and let local {{ model_name }} classify and fill test cases. Run them against the server, or only save the data.</p>
+    </header>
+
+    <form id="tester">
+      <fieldset>
+        <legend>Mode</legend>
+        <label class="choice">
+          <input type="radio" name="mode" value="run" checked>
+          <span><strong>Run tests</strong><span>Enter a live server. The tester fetches OpenAPI, generates cases, and calls the endpoint.</span></span>
+        </label>
+        <label class="choice">
+          <input type="radio" name="mode" value="generate">
+          <span><strong>Generate only</strong><span>Use a server address, an OpenAPI URL, or a JSON file. Nothing is called.</span></span>
+        </label>
+      </fieldset>
+
+      <div class="grid">
+        <div class="row">
+          <label>Server address or OpenAPI URL
+            <input id="source" type="text" name="source" placeholder="localhost:8000" autocomplete="off">
+          </label>
+          <button class="secondary" id="load" type="button">Load endpoints</button>
+        </div>
+        <label id="file-label">OpenAPI file
+          <input id="file" type="file" accept="application/json,.json">
+        </label>
+        <div>
+          <div class="label">Endpoint</div>
+          <div id="endpoints" class="endpoints">Load a spec to see endpoints.</div>
+        </div>
+        <label>How many test cases
+          <input id="count" type="number" min="1" max="30" value="3">
+        </label>
+        <label>What kind of data
+          <textarea id="prompt" placeholder="Edge cases, or customers with Sri Lankan names"></textarea>
+        </label>
+        <button id="go" type="submit">Generate and run</button>
+      </div>
+      <p id="status" class="status"></p>
+    </form>
+
+    <section id="results" class="panel hidden">
+      <h2>Results</h2>
+      <p id="summary"></p>
+      <div id="table"></div>
+      <p><a id="download" class="download" href="#">Download JSON template</a></p>
+    </section>
+  </main>
+  <script>
+    const modelName = document.body.dataset.model;
+    const form = document.querySelector("#tester");
+    const status = document.querySelector("#status");
+    const endpoints = document.querySelector("#endpoints");
+    const results = document.querySelector("#results");
+    const fileLabel = document.querySelector("#file-label");
+    const go = document.querySelector("#go");
+    let token = "";
+
+    function mode() {
+      return form.querySelector("input[name=mode]:checked").value;
+    }
+
+    function setStatus(message, isError) {
+      status.textContent = message || "";
+      status.classList.toggle("error", Boolean(isError));
+    }
+
+    function errorText(payload) {
+      if (!payload) return "Request failed.";
+      if (typeof payload.detail === "string") return payload.detail;
+      if (Array.isArray(payload.detail)) {
+        return payload.detail.map((item) => item.msg || JSON.stringify(item)).join(" ");
+      }
+      return "Request failed.";
+    }
+
+    function syncMode() {
+      const generateOnly = mode() === "generate";
+      fileLabel.classList.toggle("hidden", !generateOnly);
+      go.textContent = generateOnly ? "Generate data" : "Generate and run";
+      if (!generateOnly) document.querySelector("#file").value = "";
+    }
+
+    form.querySelectorAll("input[name=mode]").forEach((input) => {
+      input.addEventListener("change", syncMode);
+    });
+    syncMode();
+
+    document.querySelector("#load").addEventListener("click", async () => {
+      setStatus("Loading OpenAPI...");
+      endpoints.textContent = "";
+      token = "";
+      const data = new FormData();
+      const file = document.querySelector("#file").files[0];
+      if (mode() === "generate" && file) {
+        data.append("file", file);
+      } else {
+        data.append("source", document.querySelector("#source").value.trim());
+      }
+      const response = await fetch("/api/spec", { method: "POST", body: data });
+      const payload = await response.json();
+      if (!response.ok) {
+        setStatus(errorText(payload), true);
+        endpoints.textContent = "Load a spec to see endpoints.";
+        return;
+      }
+      token = payload.token;
+      endpoints.innerHTML = "";
+      payload.operations.forEach((operation, index) => {
+        const label = document.createElement("label");
+        label.className = "endpoint";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = "operation";
+        input.value = operation.key;
+        input.checked = index === 0;
+        const method = document.createElement("span");
+        method.className = "method";
+        method.textContent = operation.method;
+        const text = document.createElement("span");
+        const path = document.createElement("span");
+        path.className = "path";
+        path.textContent = operation.path;
+        text.append(path);
+        if (operation.summary) {
+          const summary = document.createElement("span");
+          summary.className = "summary";
+          summary.textContent = " — " + operation.summary;
+          text.append(summary);
+        }
+        label.append(input, method, text);
+        endpoints.append(label);
+      });
+      setStatus(`Loaded ${payload.operations.length} endpoints.`);
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const selected = form.querySelector("input[name=operation]:checked");
+      if (!token || !selected) {
+        setStatus("Load endpoints and choose one.", true);
+        return;
+      }
+      go.disabled = true;
+      setStatus(`Asking ${modelName} for test data. This can take a minute.`);
+      results.classList.add("hidden");
+      try {
+        const response = await fetch("/api/jobs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            mode: mode(),
+            token,
+            operation_key: selected.value,
+            count: Number(document.querySelector("#count").value),
+            prompt: document.querySelector("#prompt").value.trim(),
+          }),
+        });
+        const payload = await response.json();
+        if (!response.ok) {
+          setStatus(errorText(payload), true);
+          return;
+        }
+        render(payload);
+        setStatus("Done.");
+      } finally {
+        go.disabled = false;
+      }
+    });
+
+    function render(payload) {
+      const template = payload.template;
+      const download = document.querySelector("#download");
+      download.href = payload.download;
+      const summary = document.querySelector("#summary");
+      if (template.mode === "run") {
+        summary.textContent = `${template.passed} passed, ${template.failed} failed.`;
+      } else {
+        summary.textContent = `${template.cases.length} cases generated. The API was not called.`;
+      }
+      const rows = template.mode === "run" ? template.results : template.cases;
+      const table = document.createElement("table");
+      table.innerHTML = "<thead><tr><th>Case</th><th>Kind</th><th>Expected</th><th>Actual</th><th>Result</th></tr></thead>";
+      const body = document.createElement("tbody");
+      rows.forEach((row) => {
+        const tr = document.createElement("tr");
+        const request = row.request || {
+          path_params: row.path_params,
+          query_params: row.query_params,
+          body: row.body,
+        };
+        const actual = row.actual_status == null ? "—" : row.actual_status;
+        const outcome = template.mode === "run" ? (row.passed ? "Pass" : "Fail") : "Saved";
+        const outcomeClass = template.mode === "run" ? (row.passed ? "pass" : "fail") : "";
+        tr.innerHTML = `
+          <td>
+            <strong></strong>
+            <div class="summary"></div>
+            <pre></pre>
+          </td>
+          <td class="kind ${row.case_kind || ""}"></td>
+          <td></td>
+          <td></td>
+          <td class="${outcomeClass}"></td>`;
+        tr.children[0].children[0].textContent = row.name || "";
+        tr.children[0].children[1].textContent = row.description || "";
+        tr.children[0].children[2].textContent = JSON.stringify(request, null, 2);
+        if (row.error) tr.children[0].children[1].textContent += " " + row.error;
+        tr.children[1].textContent = row.case_kind || "";
+        tr.children[2].textContent = row.expected_status;
+        tr.children[3].textContent = actual;
+        tr.children[4].textContent = outcome;
+        body.append(tr);
+      });
+      table.append(body);
+      const holder = document.querySelector("#table");
+      holder.innerHTML = "";
+      holder.append(table);
+      results.classList.remove("hidden");
+    }
+  </script>
+</body>
+</html>
